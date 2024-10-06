@@ -60,9 +60,10 @@
 typedef u16 LINENUM;
 
 //Run flags
-#define SD_INITIALIZED	1
-#define SPIR_INITIALIZED 2
-#define DO_SONG_BUFFER	4
+#define SD_INITIALIZED		1
+#define SPIR_INITIALIZED	2
+#define DO_SONG_BUFFER		4
+#define INHIBIT_PROMPT_ONCE	8
 
 //these will select, at runtime, where IO happens through for load/save
 enum{
@@ -197,6 +198,7 @@ const static u8 keywords[] PROGMEM = {
 	'S','O','N','G'+0x80,
 	'N','O','S','O','N','G'+0x80,
 	'S','O','N','G','L','D'+0x80,
+	'P','O','S'+0x80,
 	0
 };
 
@@ -224,6 +226,7 @@ enum{//by moving the command list to an enum, we can easily remove sections abov
 	KW_DLOAD,
 	KW_SFX, KW_SFXLD,
 	KW_SONG, KW_NOSONG, KW_SONGLD,
+	KW_POS,
 	KW_DEFAULT /* always the final one*/
 };
 
@@ -487,7 +490,8 @@ void printmsg(const char *msg){
 
 /***************************************************************************/
 static void getln(char prompt){
-	outchar(prompt);
+	if(prompt)
+		outchar(prompt);
 	txtpos = program_end+sizeof(LINENUM);
 
 	while(1){
@@ -958,7 +962,12 @@ PROMPT:
 		goto EXECLINE;
 	}
 
-	getln('>');
+	if(run_flags & INHIBIT_PROMPT_ONCE){
+		run_flags ^= INHIBIT_PROMPT_ONCE;
+		getln(0);
+	}else{
+		getln('>');
+	}
 	toUppercaseBuffer();
 	txtpos = program_end+sizeof(u16);
 	while(*txtpos != NL)//find the end of the freshly entered line
@@ -1212,6 +1221,8 @@ INTERPRET_AT_TXT_POS:
 		goto NOSONG;
 	case KW_SONGLD:
 		goto SONGLD;
+	case KW_POS:
+		goto POS;
 	case KW_DEFAULT:
 		goto ASSIGNMENT;
 	default:
@@ -1715,8 +1726,22 @@ SONG://SONG songNum
 	goto RUN_NEXT_STATEMENT;
 
 NOSONG:
-	//expression_error = 0;
 	StopSong();
+	goto RUN_NEXT_STATEMENT;
+
+POS:
+	expression_error = 0;
+	val = expression();//get X
+	if(expression_error) goto QWHAT;
+	ignore_blanks();
+	if(*txtpos != ',') goto QWHAT;
+	txtpos++;
+	ignore_blanks();
+	expression_error = 0;
+	val2 = expression();//get Y
+	if(expression_error) goto QWHAT;
+	run_flags |= INHIBIT_PROMPT_ONCE;//don't display the prompt after the move
+	terminal_MoveCursor(val,val2);
 	goto RUN_NEXT_STATEMENT;
 
 	return 0;
