@@ -152,7 +152,7 @@ static u16 current_line_no;
 static u8 table_index;
 static LINENUM linenum;
 
-const u16 uart_bauds[] PROGMEM = { 9600/10, 19200/10, 38400/10, 57600/10, 115200/10 }; 
+const u16 uart_bauds[] PROGMEM = { (u16)(9600UL/10UL), (u16)(19200UL/10UL), (u16)(38400UL/10UL), (u16)(57600UL/10UL), (u16)(115200UL/10UL) }; 
 const u8 uart_divisors[] PROGMEM = { 185, 92, 46, 60, 30};
 
 /***********************************************************/
@@ -236,7 +236,7 @@ enum{//by moving the command list to an enum, we can easily remove sections abov
 #define FUNC_TICKS	6
 #define FUNC_REDIRI	7
 #define FUNC_REDIRO	8
-#define FUNC_BAUD	9
+#define FUNC_UBAUD	9
 #define FUNC_URX	10
 #define FUNC_UTX	11
 #define FUNC_URXPRT	12
@@ -254,11 +254,12 @@ const static u8 func_tab[] PROGMEM = {
 'T','I','C','K','S'+0x80,
 'R','E','D','I','R','I'+0x80,
 'R','E','D','I','R','O'+0x80,
-'B','A','U','D'+0x80,
+'U','B','A','U','D'+0x80,
 'U','R','X'+0x80,
 'U','T','X'+0x80,
 'U','R','X','P','R','T'+0x80,
 'U','T','X','P','R','T'+0x80,
+'J','O','Y'+0x80,
 0
 };
 
@@ -673,7 +674,7 @@ static VAR_TYPE expr4(){
 				if(params < 0 || params > kStreamScreen) goto EXPR4_ERROR;
 				outStream = params;
 				return 1;
-			case FUNC_BAUD:
+			case FUNC_UBAUD:
 				if(params==0){//get baud
 					for(u8 i=0;i<sizeof(uart_divisors);i++){
 						if((pgm_read_byte(&uart_divisors[i])*10) == UBRR0L)
@@ -683,11 +684,7 @@ static VAR_TYPE expr4(){
 				}else{//set baud
 					for(u8 i=0;i<sizeof(uart_divisors);i++){
 						if(pgm_read_word(&uart_bauds[i]) == a/10){
-							UBRR0H=0;
-							UBRR0L=pgm_read_byte(&uart_divisors[i]);
-							UCSR0A=(1<<U2X0); //double speed mode
-							UCSR0C=(1<<UCSZ01)+(1<<UCSZ00)+(0<<USBS0); //8-bit frame, no parity, 1 stop bit
-							UCSR0B=(1<<RXEN0)+(1<<TXEN0); //Enable UART TX & RX
+							UBRR0L=pgm_read_byte(&uart_divisors[i]);//other attributes set at program start...
 							return 1;
 						}
 					}
@@ -697,6 +694,11 @@ static VAR_TYPE expr4(){
 				if(params==0){//check if there is Rx data
 					return UartUnreadCount();
 				}else{//receive data
+					while(a--){
+						if(UartUnreadCount())
+							break;
+						WaitVsync(1);
+					}
 					return UartReadChar();
 				}
 			case FUNC_UTX:
@@ -731,7 +733,7 @@ static VAR_TYPE expr4(){
 					}*/
 					return 1;
 				}
-			case FUN_JOY:
+			case FUNC_JOY:
 				if(params==0){//TODO JMAP to allow keyboard to act as joypad
 					return 0;
 				}else{
@@ -865,6 +867,11 @@ int main(){
 	terminal_SetAutoWrap(true);
 	terminal_SetCursorVisible(true);
 
+	UBRR0H=0;
+	UBRR0L=pgm_read_byte(&uart_divisors[0]);
+	UCSR0A=(1<<U2X0); //double speed mode
+	UCSR0C=(1<<UCSZ01)+(1<<UCSZ00)+(0<<USBS0); //8-bit frame, no parity, 1 stop bit
+	UCSR0B=(1<<RXEN0)+(1<<TXEN0); //Enable UART TX & RX
 
 	GetPrngNumber(GetTrueRandomSeed());
 	if(GetPrngNumber(0) == 0)
