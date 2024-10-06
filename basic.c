@@ -63,7 +63,7 @@ typedef u16 LINENUM;
 #define SD_INITIALIZED		1
 #define SPIR_INITIALIZED	2
 #define DO_SONG_BUFFER		4
-#define INHIBIT_PROMPT_ONCE	8
+#define INHIBIT_PROMPT_ONCE	8//use PROMPT 0 to "permanently" inhibit
 
 //these will select, at runtime, where IO happens through for load/save
 enum{
@@ -128,9 +128,9 @@ extern bool playSong;
 extern volatile u16 songPos;
 extern volatile u16 loopStart;
 extern volatile u16 loopEnd;
-
 u8 run_flags = 0;
 u8 inhibitOutput = 0;
+char promptChar;
 static u8 runAfterLoad = 0;
 static u8 triggerRun = 0;
 static u8 inStream = kStreamKeyboard;
@@ -199,6 +199,7 @@ const static u8 keywords[] PROGMEM = {
 	'N','O','S','O','N','G'+0x80,
 	'S','O','N','G','L','D'+0x80,
 	'P','O','S'+0x80,
+	'P','R','O','M','P','T'+0x80,
 	0
 };
 
@@ -226,7 +227,7 @@ enum{//by moving the command list to an enum, we can easily remove sections abov
 	KW_DLOAD,
 	KW_SFX, KW_SFXLD,
 	KW_SONG, KW_NOSONG, KW_SONGLD,
-	KW_POS,
+	KW_POS, KW_PROMPT,
 	KW_DEFAULT /* always the final one*/
 };
 
@@ -698,7 +699,7 @@ static VAR_TYPE expr4(){
 				if(params==0){//check if there is Rx data
 					return UartUnreadCount();
 				}else{//receive data
-					while(a--){
+					while((a == 999) || a--){
 						if(UartUnreadCount())
 							break;
 						WaitVsync(1);
@@ -954,6 +955,7 @@ WARMSTART:
 	current_line = 0;
 	sp = program+sizeof(program);
 	printmsg(okmsg);
+	promptChar = '>';
 
 PROMPT:
 	if(triggerRun){
@@ -966,7 +968,7 @@ PROMPT:
 		run_flags ^= INHIBIT_PROMPT_ONCE;
 		getln(0);
 	}else{
-		getln('>');
+		getln(promptChar);
 	}
 	toUppercaseBuffer();
 	txtpos = program_end+sizeof(u16);
@@ -1027,7 +1029,7 @@ PROMPT:
 	}
 
 	if(txtpos[sizeof(LINENUM)+sizeof(char)] == NL)//If the line has no txt, it was just a delete
-		goto PROMPT;
+		goto PROMPT_SET;
 
 
 
@@ -1223,6 +1225,8 @@ INTERPRET_AT_TXT_POS:
 		goto SONGLD;
 	case KW_POS:
 		goto POS;
+	case KW_PROMPT:
+		goto PROMPT_SET;
 	case KW_DEFAULT:
 		goto ASSIGNMENT;
 	default:
@@ -1742,6 +1746,13 @@ POS:
 	if(expression_error) goto QWHAT;
 	run_flags |= INHIBIT_PROMPT_ONCE;//don't display the prompt after the move
 	terminal_MoveCursor(val,val2);
+	goto RUN_NEXT_STATEMENT;
+
+PROMPT_SET:
+	expression_error = 0;
+	val = expression();//get prompt character
+	if(expression_error) goto QWHAT;
+	promptChar = (char)val;
 	goto RUN_NEXT_STATEMENT;
 
 	return 0;
