@@ -388,7 +388,8 @@ const char patch22[] PROGMEM ={
 };
 
 //back-to-back l2
-const char patch23[] PROGMEM ={	
+const char patch23[] PROGMEM ={
+/*
 0,PC_ENV_VOL,0,
 
 4,PC_WAVE,4,
@@ -411,11 +412,13 @@ const char patch23[] PROGMEM ={
 3,PC_NOTE_DOWN,5, 
 3,PC_NOTE_UP,5, 
 3,PC_NOTE_CUT,0,
+*/
 0,PATCH_END 
 };
 
 //back-to-back l2
-const char patch24[] PROGMEM ={	
+const char patch24[] PROGMEM ={
+/*
 0,PC_ENV_VOL,0,
 
 4,PC_WAVE,4,
@@ -438,11 +441,13 @@ const char patch24[] PROGMEM ={
 3,PC_NOTE_DOWN,5, 
 3,PC_NOTE_UP,5, 
 3,PC_NOTE_CUT,0,
+*/
 0,PATCH_END 
 };
 
 //back-to-back l3
-const char patch25[] PROGMEM ={	
+const char patch25[] PROGMEM ={
+/*
 0,PC_ENV_VOL,0,
 
 4,PC_WAVE,4,
@@ -465,6 +470,7 @@ const char patch25[] PROGMEM ={
 3,PC_NOTE_DOWN,5, 
 3,PC_NOTE_UP,5, 
 3,PC_NOTE_CUT,0,
+*/
 0,PATCH_END 
 };
 
@@ -548,4 +554,3 @@ const struct PatchStruct patches[] PROGMEM = {
 {0,NULL,patch29,0,0},
 {0,NULL,patch30,0,0}
 };
-
