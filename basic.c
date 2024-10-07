@@ -31,7 +31,7 @@
 #define PM_OUTPUT	1
 #define CONSOLE_BAUD 9600
 #define VERSION "0.2"
-#define RAM_SIZE 1300
+#define RAM_SIZE 1500//1300
 #define STACK_DEPTH	5 //10
 #define STACK_SIZE (sizeof(struct stack_for_frame)*STACK_DEPTH)
 #define VAR_TYPE float	//type used for number variables
@@ -129,6 +129,7 @@ extern volatile u16 songPos;
 extern volatile u16 loopStart;
 extern volatile u16 loopEnd;
 u8 run_flags = 0;
+u8 borderColor, paperColor, inkColor;
 u8 inhibitOutput = 0;
 char promptChar;
 static u8 runAfterLoad = 0;
@@ -200,6 +201,12 @@ const static u8 keywords[] PROGMEM = {
 	'S','O','N','G','L','D'+0x80,
 	'P','O','S'+0x80,
 	'P','R','O','M','P','T'+0x80,
+	'B','O','R','D','E','R'+0x80,
+	'P','A','P','E','R'+0x80,
+	'I','N','K'+0x80,
+	'W','A','I','T','V'+0x80,
+	'F','A','D','E','I'+0x80,
+	'F','A','D','E','O'+0x80,
 	0
 };
 
@@ -228,6 +235,9 @@ enum{//by moving the command list to an enum, we can easily remove sections abov
 	KW_SFX, KW_SFXLD,
 	KW_SONG, KW_NOSONG, KW_SONGLD,
 	KW_POS, KW_PROMPT,
+	KW_BORDER, KW_PAPER, KW_INK,
+	KW_WAITV,
+	KW_FADEI, KW_FADEO,
 	KW_DEFAULT /* always the final one*/
 };
 
@@ -295,7 +305,7 @@ const static u8 relop_tab[] PROGMEM = {
 	'!','='+0x80,
 	0
 };
-
+/*
 const static u8 highlow_tab[] PROGMEM = {
 	'H','I','G','H'+0x80,
 	'H','I'+0x80,
@@ -303,7 +313,7 @@ const static u8 highlow_tab[] PROGMEM = {
 	'L','O'+0x80,
 	0
 };
-
+*/
 
 static const char okmsg[]			PROGMEM = "Ok";
 static const char whatmsg[]			PROGMEM = "Syntax error"; //"What? ";
@@ -934,7 +944,7 @@ int main(){
 	u8 *start;
 	u8 *newEnd;
 	u8 linelen;
-	u8 isDigital;
+	//u8 isDigital;
 	u8 alsoWait = 0;
 	VAR_TYPE val,val2,val3;
 	u8 var;
@@ -1192,10 +1202,10 @@ INTERPRET_AT_TXT_POS:
 		goto WARMSTART;
 
 	case KW_AWRITE:	//AWRITE <pin>, HIGH|LOW
-		isDigital = 0;
+		//isDigital = 0;
 		goto AWRITE;
 	case KW_DWRITE:	//DWRITE <pin>, HIGH|LOW
-		isDigital = 1;
+		//isDigital = 1;
 		goto DWRITE;
 
 	case KW_RSEED:
@@ -1227,6 +1237,18 @@ INTERPRET_AT_TXT_POS:
 		goto POS;
 	case KW_PROMPT:
 		goto PROMPT_SET;
+	case KW_BORDER:
+		goto BORDER;
+	case KW_PAPER:
+		goto PAPER;
+	case KW_INK:
+		goto INK;
+	case KW_WAITV:
+		goto WAITV;
+	case KW_FADEI:
+		goto FADEI;
+	case KW_FADEO:
+		goto FADEO;
 	case KW_DEFAULT:
 		goto ASSIGNMENT;
 	default:
@@ -1545,6 +1567,7 @@ MEM:
 	/*************************************************/
 AWRITE://AWRITE <pin>,val
 DWRITE:
+/*
 	expression_error = 0;
 	VAR_TYPE pinNo = expression();//get the pin number
 	if(expression_error) goto QWHAT;
@@ -1573,6 +1596,7 @@ DWRITE:
 	}else{
 		analogWrite(pinNo, val);
 	}
+*/
 	goto RUN_NEXT_STATEMENT;
 
 FILES:
@@ -1619,9 +1643,8 @@ SAVE:
 
 RSEED:
 	expression_error = 0;
-	val = expression();//get pin number
+	val = expression();
 	if(expression_error) goto QWHAT;
-
 	GetPrngNumber(val);
 	goto RUN_NEXT_STATEMENT;
 
@@ -1753,6 +1776,65 @@ PROMPT_SET:
 	val = expression();//get prompt character
 	if(expression_error) goto QWHAT;
 	promptChar = (char)val;
+	goto RUN_NEXT_STATEMENT;
+
+BORDER:
+	expression_error = 0;
+	val = expression();//get border color
+	if(expression_error) goto QWHAT;
+	borderColor = val;
+
+	goto RUN_NEXT_STATEMENT;
+
+PAPER:
+	expression_error = 0;
+	val = expression();//get paper color(BG)
+	if(expression_error) goto QWHAT;
+	paperColor = val;
+
+	goto RUN_NEXT_STATEMENT;
+
+INK:
+	expression_error = 0;
+	val = expression();//get ink color(FG)
+	if(expression_error) goto QWHAT;
+	inkColor = val;
+
+	goto RUN_NEXT_STATEMENT;
+
+WAITV:
+	expression_error = 0;
+	val = expression();//get frames to wait
+	if(expression_error) goto QWHAT;
+	WaitVsync(val);
+	goto RUN_NEXT_STATEMENT;
+
+FADEI:
+	expression_error = 0;
+	val = expression();//get speed
+	if(expression_error) goto QWHAT;
+	ignore_blanks();
+	if(*txtpos != ',') goto QWHAT;
+	txtpos++;
+	ignore_blanks();
+	expression_error = 0;
+	val2 = expression();//get blocking
+	if(expression_error) goto QWHAT;
+	FadeIn(val,val2);
+	goto RUN_NEXT_STATEMENT;
+
+FADEO:
+	expression_error = 0;
+	val = expression();//get speed
+	if(expression_error) goto QWHAT;
+	ignore_blanks();
+	if(*txtpos != ',') goto QWHAT;
+	txtpos++;
+	ignore_blanks();
+	expression_error = 0;
+	val2 = expression();//get blocking
+	if(expression_error) goto QWHAT;
+	FadeOut(val,val2);
 	goto RUN_NEXT_STATEMENT;
 
 	return 0;
